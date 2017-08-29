@@ -1,110 +1,103 @@
-const express = require('express');
-const app = express();
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
+var express     = require('express'); 
+var app         = express(); 
+var bodyParser  = require('body-parser');  
+ 
 
-app.use(express.static(__dirname+'/client'));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+ 
+var port = process.env.PORT || 8000; 
 
-Genre =require('./models/genre');
-Book =require('./models/book');
+var router  = express.Router(); 
+ 
+var mongoose = require('mongoose'); 
+ 
+mongoose.connect('mongodb://root:123456@ds159493.mlab.com:59493/node-restful');
 
-// Connect to Mongoose
-mongoose.connect('mongodb://localhost/bookstore');
-var db = mongoose.connection;
+var Heroi = require('./models/heroi');
 
-app.get('/', (req, res) => {
-	res.send('Please use /api/books or /api/genres');
+router.use(function(req, res, next) {
+    console.log('Algo está acontecendo aqui........');
+    next(); //aqui é para sinalizar de que prosseguiremos para a próxima rota. E que não irá parar por aqui!!!
 });
 
-app.get('/api/genres', (req, res) => {
-	Genre.getGenres((err, genres) => {
-		if(err){
-			throw err;
-		}
-		res.json(genres);
-	});
-});
+router.route('/herois')
+ 
+    /* 1) Método: Criar heroi (acessar em: POST http://localhost:8080/api/herois */
+    .post(function(req, res) {
+        var heroi = new Heroi();
+ 
+        //aqui setamos os campos do heroi (que virá do request)
+        heroi.nome = req.body.nome;
+ 
+        heroi.save(function(error) {
+            if(error)
+                res.send(error);
+ 
+            res.json({ message: 'Hero created! Congratulations.' });
+        });
+    })
+    /* 2) Método: Selecionar Todos (acessar em: GET http://locahost:8080/api/herois) */
+    .get(function(req, res) {
+ 
+        //Função para Selecionar Todos os 'herois' e verificar se há algum erro:
+        Heroi.find(function(err, Heroi) {
+            if(err)
+                res.send(err);
+ 
+            res.json(Heroi);
+        });
+    });
+    
+router.route('/herois/:id')
+ 
+    /* 3) Método: Selecionar Por Id (acessar em: GET http://localhost:8080/api/herois/:id) */
+    .get(function(req, res) {
+ 
+        //Função para Selecionar Por Id e verificar se há algum erro:
+        Heroi.findById(req.params.id, function(error, Heroi) {
+            if(error)
+                res.send(error);
+ 
+            res.json(Heroi);
+        });
+    })
+    
+    .put(function(req, res) {
 
-app.post('/api/genres', (req, res) => {
-	var genre = req.body;
-	Genre.addGenre(genre, (err, genre) => {
-		if(err){
-			throw err;
-		}
-		res.json(genre);
-	});
-});
+        //Primeiro: Para atualizarmos, precisamos primeiro achar o Usuario. Para isso, vamos selecionar por id:
+        Heroi.findById(req.params.id, function(error, Heroi) {
+            if(error) 
+                res.send(error);
+            
+            //Segundo: Diferente do Selecionar Por Id... a resposta será a atribuição do que encontramos na classe modelo:
+            Heroi.nome = req.body.nome;
 
-app.put('/api/genres/:_id', (req, res) => {
-	var id = req.params._id;
-	var genre = req.body;
-	Genre.updateGenre(id, genre, {}, (err, genre) => {
-		if(err){
-			throw err;
-		}
-		res.json(genre);
-	});
-});
+            //Terceiro: Agora que já atualizamos os campos, precisamos salvar essa alteração....
+            Heroi.save(function(error) {
+                if(error)
+                    res.send(error);
 
-app.delete('/api/genres/:_id', (req, res) => {
-	var id = req.params._id;
-	Genre.removeGenre(id, (err, genre) => {
-		if(err){
-			throw err;
-		}
-		res.json(genre);
-	});
-});
+                res.json({ message: 'Heroi Updted!' });
+            });
+        });
+    })
+    
+    .delete(function(req, res) {
 
-app.get('/api/books', (req, res) => {
-	Book.getBooks((err, books) => {
-		if(err){
-			throw err;
-		}
-		res.json(books);
-	});
-});
+        //Função para excluir os dados e também verificar se há algum erro no momento da exclusão:
+        Heroi.remove({
+        _id: req.params.id
+        }, function(error) {
+            if(error)
+                res.send(error);
 
-app.get('/api/books/:_id', (req, res) => {
-	Book.getBookById(req.params._id, (err, book) => {
-		if(err){
-			throw err;
-		}
-		res.json(book);
-	});
-});
+            res.json({ message: 'Heroi excluded! '});
+        });
+    });;
 
-app.post('/api/books', (req, res) => {
-	var book = req.body;
-	Book.addBook(book, (err, book) => {
-		if(err){
-			throw err;
-		}
-		res.json(book);
-	});
-});
 
-app.put('/api/books/:_id', (req, res) => {
-	var id = req.params._id;
-	var book = req.body;
-	Book.updateBook(id, book, {}, (err, book) => {
-		if(err){
-			throw err;
-		}
-		res.json(book);
-	});
-});
+app.use('/api', router); 
 
-app.delete('/api/books/:_id', (req, res) => {
-	var id = req.params._id;
-	Book.removeBook(id, (err, book) => {
-		if(err){
-			throw err;
-		}
-		res.json(book);
-	});
-});
-
-app.listen(3000);
-console.log('Running on port 3000...');
+app.listen(port);
+console.log('Iniciando a aplicação na porta ' + port);
